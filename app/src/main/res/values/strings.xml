@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Cataract Detection App</string>
+    <string name="submit">Submit</string>
+    <string name="input_image">Input image</string>
+    <string name="retro">Retro Illumination</string>
+    <string name="diffused">Diffused Illumination</string>
+    <string name="oblique">Oblique Illumination</string>
+    <string name="vision_test_result">Vision Acuity</string>
+    <string name="nuclear">Nuclear</string>
+    <string name="cortical">Cortical</string>
+    <string name="posterior">Posterior</string>
+    <string name="senile">Senile</string>
+    <string name="save_data">Save Data</string>
+    <string name="preview_image">preview_image</string>
+</resources>
