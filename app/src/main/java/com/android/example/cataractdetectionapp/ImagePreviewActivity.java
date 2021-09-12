@@ -1,13 +1,12 @@
 package com.android.example.cataractdetectionapp;
 
+import android.content.Intent;
+import android.os.Bundle;
+
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
-import android.os.Bundle;
-import android.widget.ImageView;
+import com.bumptech.glide.Glide;
+import com.github.chrisbanes.photoview.PhotoView;
 
 public class ImagePreviewActivity extends AppCompatActivity {
 
@@ -17,15 +16,8 @@ public class ImagePreviewActivity extends AppCompatActivity {
         setContentView(R.layout.activity_image_preview);
 
         Intent intent = getIntent();
-        ImageView imageView = findViewById(R.id.image);
+        PhotoView imageView = findViewById(R.id.image);
         String imagePath = intent.getStringExtra("imagePath");
-        int rotation = intent.getIntExtra("rotation",1);
-        Bitmap bmp = BitmapFactory.decodeFile(imagePath);
-        if(rotation==0){
-            Matrix matrix = new Matrix();
-            matrix.postRotate(90);
-            bmp = Bitmap.createBitmap(bmp, 0, 0, bmp.getWidth(), bmp.getHeight(), matrix, true);
-        }
-        imageView.setImageBitmap(bmp);
+        Glide.with(this).load(imagePath).into(imageView);
     }
 }

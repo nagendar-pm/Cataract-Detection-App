@@ -6,15 +6,12 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.PersistableBundle;
 import android.provider.MediaStore;
-import android.text.Editable;
 import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -33,6 +30,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+
+import com.bumptech.glide.Glide;
 
 import java.io.File;
 import java.io.IOException;
@@ -68,7 +67,9 @@ public class MainActivity extends AppCompatActivity {
 
     final int[] camInput = {-1};
     final int[] galleryInput = {-1};
-    int decision = 0;
+
+    int[] camInputs;
+
     String currentPhotoPath;
 
     @Override
@@ -95,7 +96,6 @@ public class MainActivity extends AppCompatActivity {
         Button submit = findViewById(R.id.submit);
         EditText name = findViewById(R.id.name);
         EditText age = findViewById(R.id.age);
-//        visionInput1 = findViewById(R.id.vision_1);
         visionInput2 = findViewById(R.id.vision_2);
 
         AutoCompleteTextView genderView = findViewById(R.id.gender);
@@ -116,6 +116,8 @@ public class MainActivity extends AppCompatActivity {
         acuityType.setText(testTypeAdapter.getItem(0), false);
         acuityType.setFreezesText(false);
 
+        camInputs = new int[3];
+
         if(!checkPermission()){
             requestPermission();
         }
@@ -127,20 +129,21 @@ public class MainActivity extends AppCompatActivity {
                     System.out.println(result.toString());
                     if (resultCode == RESULT_OK) {
                         String currImagePath = photoFile.getAbsolutePath();
-                        Bitmap selectedImage = BitmapFactory.decodeFile(currImagePath);
-//                        saveImage(selectedImage, camInput[0]);
                         switch (camInput[0]){
                             case 1:
                                 retroPath = currImagePath;
-                                mRetroImage.setImageBitmap(selectedImage);
+                                camInputs[0] = 1;
+                                Glide.with(this).load(currImagePath).into(mRetroImage);
                                 break;
                             case 2:
                                 diffusedPath = currImagePath;
-                                mDiffusedImage.setImageBitmap(selectedImage);
+                                camInputs[1] = 1;
+                                Glide.with(this).load(currImagePath).into(mDiffusedImage);
                                 break;
                             case 3:
                                 obliquePath = currImagePath;
-                                mObliqueImage.setImageBitmap(selectedImage);
+                                camInputs[2] = 1;
+                                Glide.with(this).load(currImagePath).into(mObliqueImage);
                                 break;
                         }
                     }
@@ -164,15 +167,15 @@ public class MainActivity extends AppCompatActivity {
                                 switch (galleryInput[0]){
                                     case 1:
                                         retroPath = picturePath;
-                                        mRetroImage.setImageBitmap(BitmapFactory.decodeFile(picturePath));
+                                        Glide.with(this).load(picturePath).into(mRetroImage);
                                         break;
                                     case 2:
                                         diffusedPath = picturePath;
-                                        mDiffusedImage.setImageBitmap(BitmapFactory.decodeFile(picturePath));
+                                        Glide.with(this).load(picturePath).into(mDiffusedImage);
                                         break;
                                     case 3:
                                         obliquePath = picturePath;
-                                        mObliqueImage.setImageBitmap(BitmapFactory.decodeFile(picturePath));
+                                        Glide.with(this).load(picturePath).into(mObliqueImage);
                                         break;
                                 }
                                 cursor.close();
@@ -274,26 +277,32 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    private ArrayList<String> getGenders(){
+        return new ArrayList<>(Arrays.asList("Male", "Female"));
+    }
+
+    private ArrayList<String> getEyePositions(){
+        return new ArrayList<>(Arrays.asList("OS", "OD"));
+    }
+
+    private ArrayList<String> getTestTypes(){
+        return new ArrayList<>(Arrays.asList("Normal", "CF1", "CF2", "CF3", "HM", "PL/PR"));
+    }
+
     private void chooseImagePicker(){
         final CharSequence[] optionsMenu = {"Capture from Camera", "Choose from Gallery", "Preview", "Cancel"};
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
         builder.setItems(optionsMenu, (dialogInterface, i) -> {
             if(optionsMenu[i].equals("Capture from Camera")){
-                decision = 0;
                 Intent takePicture = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                 takePicture.putExtra("REQUEST_CODE", 0);
-
-                // Ensure that there's a camera activity to handle the intent
                 if (takePicture.resolveActivity(getPackageManager()) != null) {
-                    // Create the File where the photo should go
                     photoFile = null;
                     try {
                         photoFile = createImageFile();
                     } catch (IOException ex) {
                         Log.d("ImagePicker ", "chooseImagePicker: "+ex);
-                        // Error occurred while creating the File
                     }
-                    // Continue only if the File was successfully created
                     if (photoFile != null) {
                         new Thread(() -> {
                             Uri photoURI = FileProvider.getUriForFile(Objects.requireNonNull(getApplicationContext()),
@@ -306,7 +315,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             else if(optionsMenu[i].equals("Choose from Gallery")){
-                decision = 1;
                 Intent choosePicture = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
                 choosePicture.putExtra("REQUEST_CODE", 0);
                 galleryLaunch.launch(choosePicture);
@@ -328,7 +336,6 @@ public class MainActivity extends AppCompatActivity {
                 }
                 if(!path.trim().equals("")){
                     displayImg.putExtra("imagePath", path);
-                    displayImg.putExtra("rotation", decision);
                     startActivity(displayImg);
                 }
             }
@@ -354,20 +361,10 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra("diffused", diffusedPath);
         intent.putExtra("oblique", obliquePath);
 
+        intent.putExtra("camInputs", camInputs[0]+"#"+camInputs[1]+"#"+camInputs[2]);
+
         startActivity(intent);
         finish();
-    }
-
-    private ArrayList<String> getGenders(){
-        return new ArrayList<>(Arrays.asList("Male", "Female"));
-    }
-
-    private ArrayList<String> getEyePositions(){
-        return new ArrayList<>(Arrays.asList("OS", "OD"));
-    }
-
-    private ArrayList<String> getTestTypes(){
-        return new ArrayList<>(Arrays.asList("Normal", "CF1", "CF2", "CF3", "HM", "PL/PR"));
     }
 
     private File createImageFile() throws IOException {
