@@ -3,9 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:background="#ededed"
-    tools:context=".MainActivity">
+    android:background="#ededed">
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/textInputLayout"
@@ -86,8 +84,7 @@
             android:id="@+id/gender"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/gender"
-            android:editable="false"/>
+            android:hint="@string/gender" />
 
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -112,8 +109,7 @@
             android:id="@+id/eye"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/eye_position"
-            android:editable="false"/>
+            android:hint="@string/eye_position" />
 
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -124,30 +120,46 @@
         app:layout_constraintBottom_toTopOf="@+id/constraintLayout2"
         app:layout_constraintTop_toBottomOf="@+id/textInputLayout2">
 
+        <TextView
+            android:id="@+id/text_view"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:layout_constraintHorizontal_weight="1"
+            android:paddingBottom="10dp"
+            android:text=" /"
+            android:textSize="45sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/textInputLayout6"
+            app:layout_constraintStart_toEndOf="@+id/textInputLayout5"
+            app:layout_constraintTop_toTopOf="parent" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/textInputLayout5"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense.ExposedDropdownMenu"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:gravity="center"
             app:layout_constraintHorizontal_weight="4.5"
+            android:hint="@string/vision_test_result"
             android:layout_margin="10dp"
             app:boxBackgroundColor="#ffffff"
             app:boxCornerRadiusBottomEnd="10dp"
             app:boxCornerRadiusBottomStart="10dp"
             app:boxCornerRadiusTopEnd="10dp"
             app:boxCornerRadiusTopStart="10dp"
+            app:endIconMode="clear_text"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/textInputLayout6"
+            app:layout_constraintEnd_toStartOf="@+id/text_view"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
-            <AutoCompleteTextView
+            <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/vision_1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="@string/vision_test"
-                android:editable="false"/>
+                android:imeOptions="actionDone"
+                android:inputType="number"
+                android:singleLine="true" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -169,7 +181,7 @@
             app:endIconMode="clear_text"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/textInputLayout5"
+            app:layout_constraintStart_toEndOf="@+id/text_view"
             app:layout_constraintTop_toTopOf="parent">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -177,7 +189,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:imeOptions="actionDone"
-                android:inputType="numberDecimal"
+                android:inputType="number"
                 android:singleLine="true" />
 
         </com.google.android.material.textfield.TextInputLayout>

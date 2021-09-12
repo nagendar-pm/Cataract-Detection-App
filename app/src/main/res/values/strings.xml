@@ -5,11 +5,17 @@
     <string name="retro">Retro Illumination</string>
     <string name="diffused">Diffused Illumination</string>
     <string name="oblique">Oblique Illumination</string>
-    <string name="vision_test_result">Vision Acuity</string>
+    <string name="vision_test_result">(Normal) Result</string>
     <string name="nuclear">Nuclear</string>
     <string name="cortical">Cortical</string>
     <string name="posterior">Posterior</string>
     <string name="senile">Senile</string>
     <string name="save_data">Save Data</string>
     <string name="preview_image">preview_image</string>
+    <string name="name">Name</string>
+    <string name="age">Age</string>
+    <string name="gender">Gender</string>
+    <string name="eye_position">Eye Position</string>
+    <string name="next">Next</string>
+    <string name="vision_test">Vision Test</string>
 </resources>
