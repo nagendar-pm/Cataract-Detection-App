@@ -1,45 +1,26 @@
 package com.android.example.cataractdetectionapp;
 
-import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.PersistableBundle;
-import android.provider.MediaStore;
-import android.util.Log;
-import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.content.FileProvider;
-
-import com.bumptech.glide.Glide;
 
 import java.io.File;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
-import java.util.Objects;
 
 import static android.Manifest.permission.CAMERA;
 import static android.Manifest.permission.INTERNET;
@@ -50,57 +31,29 @@ import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
 public class MainActivity extends AppCompatActivity {
 
     private static final int PERMISSION_REQUEST_CODE = 200;
-    private ActivityResultLauncher<Intent> camLaunch;
-    private ActivityResultLauncher<Intent> galleryLaunch;
 
     private AutoCompleteTextView acuityType;
+    private EditText visionInput1;
     private EditText visionInput2;
 
-    private ImageView mRetroImage;
-    private ImageView mDiffusedImage;
-    private ImageView mObliqueImage;
-
-    private File photoFile = null;
-    private String retroPath = "";
-    private String diffusedPath = "";
-    private String obliquePath = "";
-
-    final int[] camInput = {-1};
-    final int[] galleryInput = {-1};
-
-    int[] camInputs;
-
-    String currentPhotoPath;
+    private static final String PATH = Environment.getExternalStorageDirectory().getAbsolutePath();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        View mRetroView = findViewById(R.id.retro_input);
-        View mDiffusedView = findViewById(R.id.diffused_input);
-        View mObliqueView = findViewById(R.id.oblique_input);
-
-        TextView mRetroText = mRetroView.findViewById(R.id.image_name);
-        TextView mDiffusedText = mDiffusedView.findViewById(R.id.image_name);
-        TextView mObliqueText = mObliqueView.findViewById(R.id.image_name);
-
-        mRetroImage = mRetroView.findViewById(R.id.image_input);
-        mDiffusedImage = mDiffusedView.findViewById(R.id.image_input);
-        mObliqueImage = mObliqueView.findViewById(R.id.image_input);
-
-        mRetroText.setText(R.string.retro);
-        mDiffusedText.setText(R.string.diffused);
-        mObliqueText.setText(R.string.oblique);
+        createDirectory();
 
         Button submit = findViewById(R.id.submit);
         EditText name = findViewById(R.id.name);
         EditText age = findViewById(R.id.age);
+        visionInput1 = findViewById(R.id.vision_1);
         visionInput2 = findViewById(R.id.vision_2);
 
         AutoCompleteTextView genderView = findViewById(R.id.gender);
         AutoCompleteTextView eyeView = findViewById(R.id.eye);
-        acuityType = findViewById(R.id.vision_1);
+        acuityType = findViewById(R.id.vision_type);
 
         ArrayList<String> genders = getGenders();
         ArrayList<String> eyes = getEyePositions();
@@ -116,92 +69,9 @@ public class MainActivity extends AppCompatActivity {
         acuityType.setText(testTypeAdapter.getItem(0), false);
         acuityType.setFreezesText(false);
 
-        camInputs = new int[3];
-
         if(!checkPermission()){
             requestPermission();
         }
-
-        camLaunch = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    int resultCode = result.getResultCode();
-                    System.out.println(result.toString());
-                    if (resultCode == RESULT_OK) {
-                        String currImagePath = photoFile.getAbsolutePath();
-                        switch (camInput[0]){
-                            case 1:
-                                retroPath = currImagePath;
-                                camInputs[0] = 1;
-                                Glide.with(this).load(currImagePath).into(mRetroImage);
-                                break;
-                            case 2:
-                                diffusedPath = currImagePath;
-                                camInputs[1] = 1;
-                                Glide.with(this).load(currImagePath).into(mDiffusedImage);
-                                break;
-                            case 3:
-                                obliquePath = currImagePath;
-                                camInputs[2] = 1;
-                                Glide.with(this).load(currImagePath).into(mObliqueImage);
-                                break;
-                        }
-                    }
-                }
-        );
-
-        galleryLaunch = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    int resultCode = result.getResultCode();
-                    Intent data = result.getData();
-                    if (resultCode == RESULT_OK && data != null) {
-                        Uri selectedImage = data.getData();
-                        String[] filePathColumn = {MediaStore.Images.Media.DATA};
-                        if (selectedImage != null) {
-                            Cursor cursor = getContentResolver().query(selectedImage, filePathColumn, null, null, null);
-                            if (cursor != null) {
-                                cursor.moveToFirst();
-                                int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-                                String picturePath = cursor.getString(columnIndex);
-                                switch (galleryInput[0]){
-                                    case 1:
-                                        retroPath = picturePath;
-                                        Glide.with(this).load(picturePath).into(mRetroImage);
-                                        break;
-                                    case 2:
-                                        diffusedPath = picturePath;
-                                        Glide.with(this).load(picturePath).into(mDiffusedImage);
-                                        break;
-                                    case 3:
-                                        obliquePath = picturePath;
-                                        Glide.with(this).load(picturePath).into(mObliqueImage);
-                                        break;
-                                }
-                                cursor.close();
-                            }
-                        }
-                    }
-                }
-        );
-
-        mRetroImage.setOnClickListener(view -> {
-            camInput[0] = 1;
-            galleryInput[0] = 1;
-            chooseImagePicker();
-        });
-
-        mDiffusedImage.setOnClickListener(view -> {
-            camInput[0] = 2;
-            galleryInput[0] = 2;
-            chooseImagePicker();
-        });
-
-        mObliqueImage.setOnClickListener(view -> {
-            camInput[0] = 3;
-            galleryInput[0] = 3;
-            chooseImagePicker();
-        });
 
         submit.setOnClickListener(view -> submitInputs(name.getText().toString(), age.getText().toString(), genderView.getText().toString(), eyeView.getText().toString()));
 
@@ -277,6 +147,15 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    private void createDirectory(){
+        new Thread(() -> {
+            File file = new File(PATH, File.separator+"Cataract Grading");
+            if(!file.exists()){
+                boolean mkdir = file.mkdir();
+            }
+        }).start();
+    }
+
     private ArrayList<String> getGenders(){
         return new ArrayList<>(Arrays.asList("Male", "Female"));
     }
@@ -286,64 +165,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private ArrayList<String> getTestTypes(){
-        return new ArrayList<>(Arrays.asList("Normal", "CF1", "CF2", "CF3", "HM", "PL/PR"));
-    }
-
-    private void chooseImagePicker(){
-        final CharSequence[] optionsMenu = {"Capture from Camera", "Choose from Gallery", "Preview", "Cancel"};
-        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-        builder.setItems(optionsMenu, (dialogInterface, i) -> {
-            if(optionsMenu[i].equals("Capture from Camera")){
-                Intent takePicture = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                takePicture.putExtra("REQUEST_CODE", 0);
-                if (takePicture.resolveActivity(getPackageManager()) != null) {
-                    photoFile = null;
-                    try {
-                        photoFile = createImageFile();
-                    } catch (IOException ex) {
-                        Log.d("ImagePicker ", "chooseImagePicker: "+ex);
-                    }
-                    if (photoFile != null) {
-                        new Thread(() -> {
-                            Uri photoURI = FileProvider.getUriForFile(Objects.requireNonNull(getApplicationContext()),
-                                    BuildConfig.APPLICATION_ID + ".provider", photoFile);
-                            takePicture.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
-                            camLaunch.launch(takePicture);
-                        }).start();
-
-                    }
-                }
-            }
-            else if(optionsMenu[i].equals("Choose from Gallery")){
-                Intent choosePicture = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-                choosePicture.putExtra("REQUEST_CODE", 0);
-                galleryLaunch.launch(choosePicture);
-            }
-            else if(optionsMenu[i].equals("Preview")){
-                Intent displayImg = new Intent(this, ImagePreviewActivity.class);
-                String path;
-                switch (camInput[0]){
-                    case 2:
-                        path = diffusedPath;
-                        break;
-                    case 3:
-                        path = obliquePath;
-                        break;
-                    case 1:
-                    default:
-                        path = retroPath;
-                        break;
-                }
-                if(!path.trim().equals("")){
-                    displayImg.putExtra("imagePath", path);
-                    startActivity(displayImg);
-                }
-            }
-            else{
-                dialogInterface.dismiss();
-            }
-        }).create();
-        builder.show();
+        return new ArrayList<>(Arrays.asList("Standard", "CF1", "CF2", "CF3", "HM", "PL/PR"));
     }
 
     private void submitInputs(String name, String age, String gender, String eye){
@@ -353,49 +175,10 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra("gender", gender);
         intent.putExtra("eye", eye);
 
-        intent.putExtra("acuity_1", acuityType.getText().toString());
-        System.out.println("acuity "+acuityType.getText()+" h "+visionInput2.getText()+" e "+eye);
+        intent.putExtra("acuity_type", acuityType.getText().toString());
+        if(!visionInput1.getText().toString().trim().equals("")) intent.putExtra("acuity_1", visionInput1.getText().toString());
         if(!visionInput2.getText().toString().trim().equals("")) intent.putExtra("acuity_2", visionInput2.getText().toString());
 
-        intent.putExtra("retro", retroPath);
-        intent.putExtra("diffused", diffusedPath);
-        intent.putExtra("oblique", obliquePath);
-
-        intent.putExtra("camInputs", camInputs[0]+"#"+camInputs[1]+"#"+camInputs[2]);
-
         startActivity(intent);
-        finish();
-    }
-
-    private File createImageFile() throws IOException {
-        @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HHmmss_").format(new Date());
-        String imageFileName = "JPEG_" + timeStamp + "_";
-        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        File image = File.createTempFile(
-                imageFileName,
-                ".jpg",
-                storageDir
-        );
-        currentPhotoPath = image.getAbsolutePath();
-        return image;
-    }
-
-    @Override
-    public void onSaveInstanceState(@NonNull Bundle outState, @NonNull PersistableBundle outPersistentState) {
-        super.onSaveInstanceState(outState, outPersistentState);
-
-        if(!retroPath.trim().equals("")) outState.putParcelable("retro", Uri.parse(retroPath));
-        if(!diffusedPath.trim().equals("")) outState.putParcelable("diffused", Uri.parse(diffusedPath));
-        if(!obliquePath.trim().equals("")) outState.putParcelable("oblique", Uri.parse(obliquePath));
-    }
-
-    @Override
-    public void onRestoreInstanceState(@Nullable Bundle savedInstanceState, @Nullable PersistableBundle persistentState) {
-        super.onRestoreInstanceState(savedInstanceState, persistentState);
-
-        assert savedInstanceState != null;
-        retroPath = savedInstanceState.getParcelable("retro");
-        diffusedPath = savedInstanceState.getParcelable("diffused");
-        obliquePath = savedInstanceState.getParcelable("oblique");
     }
 }

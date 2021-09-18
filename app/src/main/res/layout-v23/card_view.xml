@@ -25,7 +25,7 @@
             android:layout_weight="0.9"
             android:contentDescription="@string/input_image"
             android:background="@color/cp4_3"
-            android:foreground="#11000000" />
+            android:foreground="#77000000" />
 
         <TextView
             android:id="@+id/image_name"

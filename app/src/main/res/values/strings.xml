@@ -5,7 +5,7 @@
     <string name="retro">Retro Illumination</string>
     <string name="diffused">Diffused Illumination</string>
     <string name="oblique">Oblique Illumination</string>
-    <string name="vision_test_result">(Normal) Result</string>
+    <string name="vision_test_result">Visual Acuity</string>
     <string name="nuclear">Nuclear</string>
     <string name="cortical">Cortical</string>
     <string name="posterior">Posterior</string>
