@@ -26,16 +26,25 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.WorkerThread;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.FileProvider;
 
 import com.bumptech.glide.Glide;
 
+import org.pytorch.IValue;
+import org.pytorch.LiteModuleLoader;
+import org.pytorch.Module;
+import org.pytorch.Tensor;
+import org.pytorch.torchvision.TensorImageUtils;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -72,12 +81,19 @@ public class InferenceActivity extends AppCompatActivity {
     int[] rotate;
     String currentPhotoPath;
 
+    private Module module;
+
+    private final int WIDTH = 189;
+    private final int HEIGHT = 336;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_inference);
 
         createDirectory();
+
+        load();
 
         View mRetroView = findViewById(R.id.retro_input);
         View mDiffusedView = findViewById(R.id.diffused_input);
@@ -153,6 +169,12 @@ public class InferenceActivity extends AppCompatActivity {
             layout2.setVisibility(View.VISIBLE);
             saveData.setVisibility(View.VISIBLE);
             next.setVisibility(View.VISIBLE);
+
+            try {
+                inference();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         });
 
         saveData.setOnClickListener(view -> {
@@ -247,6 +269,66 @@ public class InferenceActivity extends AppCompatActivity {
             gallery[0] = 3;
             chooseImagePicker();
         });
+    }
+
+    public static String assetFilePath(Context context, String assetName) throws IOException {
+        File file = new File(context.getFilesDir(), assetName);
+        if (file.exists() && file.length() > 0) {
+            return file.getAbsolutePath();
+        }
+
+        try (InputStream is = context.getAssets().open(assetName)) {
+            try (OutputStream os = new FileOutputStream(file)) {
+                byte[] buffer = new byte[4 * 1024];
+                int read;
+                while ((read = is.read(buffer)) != -1) {
+                    os.write(buffer, 0, read);
+                }
+                os.flush();
+            }
+            return file.getAbsolutePath();
+        }
+    }
+
+    private void load(){
+        loadModule();
+    }
+
+    @WorkerThread
+    private void loadModule(){
+        try {
+            module = LiteModuleLoader.load(assetFilePath(getApplicationContext(), "model.ptl"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @WorkerThread
+    private void inference() throws IOException {
+        Bitmap bmp1, bmp2, bmp3;
+
+        bmp1 = BitmapFactory.decodeFile(new File(retroPath).exists()?retroPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
+        bmp2 = BitmapFactory.decodeFile(new File(diffusedPath).exists()?diffusedPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
+        bmp3 = BitmapFactory.decodeFile(new File(obliquePath).exists()?obliquePath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
+
+        Bitmap resized1 = Bitmap.createScaledBitmap(bmp1, WIDTH, HEIGHT, true);
+        Bitmap resized2 = Bitmap.createScaledBitmap(bmp2, WIDTH, HEIGHT, true);
+        Bitmap resized3 = Bitmap.createScaledBitmap(bmp3, WIDTH, HEIGHT, true);
+
+//        FloatBuffer inputBuffer1 = Tensor.allocateFloatBuffer(resized1.getWidth()*resized1.getHeight());
+//        FloatBuffer inputBuffer2 = Tensor.allocateFloatBuffer(resized2.getWidth()*resized2.getHeight());
+//        FloatBuffer inputBuffer3 = Tensor.allocateFloatBuffer(resized3.getWidth()*resized3.getHeight());
+
+        Tensor inputTensor1 = TensorImageUtils.bitmapToFloat32Tensor(resized1,
+                TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
+        Tensor inputTensor2 = TensorImageUtils.bitmapToFloat32Tensor(resized2,
+                TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
+        Tensor inputTensor3 = TensorImageUtils.bitmapToFloat32Tensor(resized3,
+                TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
+
+        Tensor outputTensor = module.forward(IValue.from(inputTensor1)).toTensor();
+        float[] scores = outputTensor.getDataAsFloatArray();
+        System.out.println("output "+Arrays.toString(scores));
     }
 
     private void chooseImagePicker(){
