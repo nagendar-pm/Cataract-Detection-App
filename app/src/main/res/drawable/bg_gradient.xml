@@ -5,5 +5,5 @@
         android:type="linear"
         android:angle="135"
         android:startColor="#7392dd"
-        android:endColor="#759eb8" />
+        android:endColor="#ffffff" />
 </shape>

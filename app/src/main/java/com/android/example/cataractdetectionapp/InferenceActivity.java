@@ -45,6 +45,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.FloatBuffer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -82,9 +83,6 @@ public class InferenceActivity extends AppCompatActivity {
     String currentPhotoPath;
 
     private Module module;
-
-    private final int WIDTH = 189;
-    private final int HEIGHT = 336;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -169,9 +167,13 @@ public class InferenceActivity extends AppCompatActivity {
             layout2.setVisibility(View.VISIBLE);
             saveData.setVisibility(View.VISIBLE);
             next.setVisibility(View.VISIBLE);
-
+            int[] labels;
             try {
-                inference();
+                labels = inference();
+                nuclear.setText(nuclearAdapter.getItem(labels[0]<nuclearAdapter.getCount()?labels[0]:0));
+                cortical.setText(corticalAdapter.getItem(labels[1]<corticalAdapter.getCount()?labels[1]:0));
+                posterior.setText(posteriorAdapter.getItem(labels[2]<posteriorAdapter.getCount()?labels[2]:0));
+                senile.setText(senileAdapter.getItem(labels[3]<senileAdapter.getCount()?labels[3]:0));
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -304,20 +306,18 @@ public class InferenceActivity extends AppCompatActivity {
     }
 
     @WorkerThread
-    private void inference() throws IOException {
+    private int[] inference() throws IOException {
         Bitmap bmp1, bmp2, bmp3;
 
-        bmp1 = BitmapFactory.decodeFile(new File(retroPath).exists()?retroPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
-        bmp2 = BitmapFactory.decodeFile(new File(diffusedPath).exists()?diffusedPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
+        bmp1 = BitmapFactory.decodeFile(new File(diffusedPath).exists()?diffusedPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
+        bmp2 = BitmapFactory.decodeFile(new File(retroPath).exists()?retroPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
         bmp3 = BitmapFactory.decodeFile(new File(obliquePath).exists()?obliquePath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
 
+        int WIDTH = 189;
+        int HEIGHT = 336;
         Bitmap resized1 = Bitmap.createScaledBitmap(bmp1, WIDTH, HEIGHT, true);
         Bitmap resized2 = Bitmap.createScaledBitmap(bmp2, WIDTH, HEIGHT, true);
         Bitmap resized3 = Bitmap.createScaledBitmap(bmp3, WIDTH, HEIGHT, true);
-
-//        FloatBuffer inputBuffer1 = Tensor.allocateFloatBuffer(resized1.getWidth()*resized1.getHeight());
-//        FloatBuffer inputBuffer2 = Tensor.allocateFloatBuffer(resized2.getWidth()*resized2.getHeight());
-//        FloatBuffer inputBuffer3 = Tensor.allocateFloatBuffer(resized3.getWidth()*resized3.getHeight());
 
         Tensor inputTensor1 = TensorImageUtils.bitmapToFloat32Tensor(resized1,
                 TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
@@ -326,9 +326,32 @@ public class InferenceActivity extends AppCompatActivity {
         Tensor inputTensor3 = TensorImageUtils.bitmapToFloat32Tensor(resized3,
                 TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
 
-        Tensor outputTensor = module.forward(IValue.from(inputTensor1)).toTensor();
+        float[] f1 = inputTensor1.getDataAsFloatArray();
+        float[] f2 = inputTensor1.getDataAsFloatArray();
+        float[] f3 = inputTensor1.getDataAsFloatArray();
+
+        FloatBuffer buffer = Tensor.allocateFloatBuffer(3*3* WIDTH * HEIGHT);
+        buffer.put(f1);
+        buffer.put(f2);
+        buffer.put(f3);
+
+        Tensor inputTensor = Tensor.fromBlob(buffer, new long[]{1, 9, HEIGHT, WIDTH});
+        Tensor outputTensor = module.forward(IValue.from(inputTensor)).toTensor();
         float[] scores = outputTensor.getDataAsFloatArray();
+        int[] output = new int[scores.length];
+        for (int i = 0; i < scores.length; i++) {
+            if(scores[i]<0){
+                output[i] = 0;
+                continue;
+            }
+            int temp = (int) (scores[i]);
+            float curr = scores[i]*10;
+            if((int)curr-temp<=5) output[i] = temp;
+            else output[i] = temp+1;
+        }
         System.out.println("output "+Arrays.toString(scores));
+        System.out.println("output "+Arrays.toString(output));
+        return output;
     }
 
     private void chooseImagePicker(){
@@ -398,7 +421,7 @@ public class InferenceActivity extends AppCompatActivity {
     }
 
     private File createImageFile() throws IOException {
-        @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HHmmss_").format(new Date());
+        @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss_").format(new Date());
         String imageFileName = "JPEG_" + timeStamp + "_";
         File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         File image = File.createTempFile(
@@ -444,6 +467,7 @@ public class InferenceActivity extends AppCompatActivity {
             String c = cortical.getText().toString();
             String p = posterior.getText().toString();
             String msc = senile.getText().toString();
+            msc = msc.equals("None")?"":msc;
             @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date());
 
             String currPath = "";
@@ -470,8 +494,6 @@ public class InferenceActivity extends AppCompatActivity {
     }
 
     private void saveImageUtil(String srcPath, String destPath, int toRotate){
-        System.out.println("src "+srcPath);
-        System.out.println("dest "+destPath);
         final int[] signal = {-1};
         Thread t1 = new Thread(() -> {
             Bitmap bmp = BitmapFactory.decodeFile(srcPath);
