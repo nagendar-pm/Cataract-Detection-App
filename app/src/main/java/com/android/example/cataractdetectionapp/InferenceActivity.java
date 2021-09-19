@@ -4,6 +4,8 @@ import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.AssetFileDescriptor;
+import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -26,16 +28,24 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.WorkerThread;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.FileProvider;
 
 import com.bumptech.glide.Glide;
 
+import org.tensorflow.lite.Interpreter;
+
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,6 +81,8 @@ public class InferenceActivity extends AppCompatActivity {
     final int[] gallery = {-1};
     int[] rotate;
     String currentPhotoPath;
+
+    private Interpreter tflite;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -153,6 +165,7 @@ public class InferenceActivity extends AppCompatActivity {
             layout2.setVisibility(View.VISIBLE);
             saveData.setVisibility(View.VISIBLE);
             next.setVisibility(View.VISIBLE);
+            load();
         });
 
         saveData.setOnClickListener(view -> {
@@ -247,6 +260,80 @@ public class InferenceActivity extends AppCompatActivity {
             gallery[0] = 3;
             chooseImagePicker();
         });
+    }
+
+    @WorkerThread
+    public void load(){
+        loadModel();
+        tflite.allocateTensors();
+        int[] shape = tflite.getInputTensor(0).shape();
+        int WIDTH = shape[1];
+        int HEIGHT = shape[2];
+        Bitmap bmp1 = BitmapFactory.decodeFile(retroPath);
+        Bitmap bmp2 = BitmapFactory.decodeFile(diffusedPath);
+        Bitmap bmp3 = BitmapFactory.decodeFile(obliquePath);
+        Bitmap resized1 = Bitmap.createScaledBitmap(bmp1, WIDTH, HEIGHT, true);
+        Bitmap resized2 = Bitmap.createScaledBitmap(bmp2, WIDTH, HEIGHT, true);
+        Bitmap resized3 = Bitmap.createScaledBitmap(bmp3, WIDTH, HEIGHT, true);
+
+//        convertBitmapToByteBuffer();
+//
+        ByteBuffer b1 = ByteBuffer.allocate(bmp1.getRowBytes()*bmp1.getHeight());
+        ByteBuffer b2 = ByteBuffer.allocate(bmp2.getRowBytes()*bmp2.getHeight());
+        ByteBuffer b3 = ByteBuffer.allocate(bmp3.getRowBytes()*bmp3.getHeight());
+
+        bmp1.copyPixelsToBuffer(b1);
+        bmp2.copyPixelsToBuffer(b2);
+        bmp3.copyPixelsToBuffer(b3);
+
+        double[] op = new double[4];
+        op[0] = op[1] = op[2] = op[3] = 0.0;
+        tflite.run(new ByteBuffer[]{b1, b2, b3}, op);
+        Log.d("output ", "load: "+Arrays.toString(op));
+    }
+
+
+    @WorkerThread
+    private synchronized void loadModel() {
+        try {
+            ByteBuffer buffer = loadModelFile(mContext.getAssets(), "AIVision_model1.tflite");
+            tflite = new Interpreter(buffer);
+            Log.v("model ", "TFLite model loaded.");
+        } catch (IOException ex) {
+            Log.e("model ", ex.getMessage());
+        }
+    }
+
+    private ByteBuffer convertBitmapToByteBuffer_float(Bitmap bitmap, int BATCH_SIZE, int inputSize, int PIXEL_SIZE) {
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4 * BATCH_SIZE *
+                inputSize * inputSize * PIXEL_SIZE); //float_size = 4 bytes
+        byteBuffer.order(ByteOrder.nativeOrder());
+        int[] intValues = new int[inputSize * inputSize];
+        bitmap.getPixels(intValues, 0, bitmap.getWidth(), 0, 0,
+                bitmap.getWidth(), bitmap.getHeight());
+        int pixel = 0;
+        for (int i = 0; i < inputSize; ++i) {
+            for (int j = 0; j < inputSize; ++j) {
+                final int val = intValues[pixel++];
+
+
+                byteBuffer.putFloat( ((val >> 16) & 0xFF)* (1.f/255.f));
+                byteBuffer.putFloat( ((val >> 8) & 0xFF)* (1.f/255.f));
+                byteBuffer.putFloat( (val & 0xFF)* (1.f/255.f));
+            }
+        }
+        return byteBuffer;
+    }
+
+    public static MappedByteBuffer loadModelFile(AssetManager assetManager, String modelPath)
+            throws IOException {
+        try (AssetFileDescriptor fileDescriptor = assetManager.openFd(modelPath);
+             FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor())) {
+            FileChannel fileChannel = inputStream.getChannel();
+            long startOffset = fileDescriptor.getStartOffset();
+            long declaredLength = fileDescriptor.getDeclaredLength();
+            return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+        }
     }
 
     private void chooseImagePicker(){
