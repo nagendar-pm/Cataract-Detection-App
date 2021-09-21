@@ -123,11 +123,21 @@ public class MainActivity extends AppCompatActivity {
                                     (dialog, which) -> requestPermissions(new String[]{WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, INTERNET, CAMERA, MANAGE_EXTERNAL_STORAGE},
                                             PERMISSION_REQUEST_CODE));
                         }
+                        if (shouldShowRequestPermissionRationale(CAMERA)) {
+                            showMessageOKCancel(
+                                    (dialog, which) -> requestPermissions(new String[]{WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, INTERNET, CAMERA, MANAGE_EXTERNAL_STORAGE},
+                                            PERMISSION_REQUEST_CODE));
+                        }
                     } else {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                             if (shouldShowRequestPermissionRationale(WRITE_EXTERNAL_STORAGE)) {
                                 showMessageOKCancel(
                                         (dialog, which) -> requestPermissions(new String[]{WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, CAMERA, INTERNET},
+                                                PERMISSION_REQUEST_CODE));
+                            }
+                            if (shouldShowRequestPermissionRationale(CAMERA)) {
+                                showMessageOKCancel(
+                                        (dialog, which) -> requestPermissions(new String[]{WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, INTERNET, CAMERA, MANAGE_EXTERNAL_STORAGE},
                                                 PERMISSION_REQUEST_CODE));
                             }
                         }

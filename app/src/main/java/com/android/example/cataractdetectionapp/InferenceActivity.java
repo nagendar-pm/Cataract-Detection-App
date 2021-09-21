@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.Matrix;
 import android.net.Uri;
 import android.os.Bundle;
@@ -37,7 +38,6 @@ import org.pytorch.IValue;
 import org.pytorch.LiteModuleLoader;
 import org.pytorch.Module;
 import org.pytorch.Tensor;
-import org.pytorch.torchvision.TensorImageUtils;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -71,7 +71,7 @@ public class InferenceActivity extends AppCompatActivity {
     private ImageView mRetroImage;
     private ImageView mDiffusedImage;
     private ImageView mObliqueImage;
-
+    
     private File photoFile = null;
     private String retroPath = "";
     private String diffusedPath = "";
@@ -163,6 +163,11 @@ public class InferenceActivity extends AppCompatActivity {
         String finalAcuity2 = acuity2;
 
         submit.setOnClickListener(view -> {
+            if(retroPath.equals("") && diffusedPath.equals("") && obliquePath.equals("")){
+                Toast.makeText(this, "Please provide the image inputs!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
             layout1.setVisibility(View.VISIBLE);
             layout2.setVisibility(View.VISIBLE);
             saveData.setVisibility(View.VISIBLE);
@@ -170,10 +175,21 @@ public class InferenceActivity extends AppCompatActivity {
             int[] labels;
             try {
                 labels = inference();
-                nuclear.setText(nuclearAdapter.getItem(labels[0]<nuclearAdapter.getCount()?labels[0]:0));
-                cortical.setText(corticalAdapter.getItem(labels[1]<corticalAdapter.getCount()?labels[1]:0));
-                posterior.setText(posteriorAdapter.getItem(labels[2]<posteriorAdapter.getCount()?labels[2]:0));
-                senile.setText(senileAdapter.getItem(labels[3]<senileAdapter.getCount()?labels[3]:0));
+
+                labels[0] = labels[0]<=0?0:(labels[0]>=nuclearAdapter.getCount()?nuclearAdapter.getCount()-1:labels[0]);
+                labels[1] = labels[1]<=0?0:(labels[1]>=corticalAdapter.getCount()?corticalAdapter.getCount()-1:labels[1]);
+                labels[2] = labels[2]<=0?0:(labels[2]>=posteriorAdapter.getCount()?posteriorAdapter.getCount()-1:labels[2]);
+                labels[3] = labels[3]<=0?0:(labels[3]>=senileAdapter.getCount()?senileAdapter.getCount()-1:labels[3]);
+
+                nuclear.setText(nuclearAdapter.getItem(labels[0]), false);
+                cortical.setText(corticalAdapter.getItem(labels[1]), false);
+                posterior.setText(posteriorAdapter.getItem(labels[2]), false);
+                senile.setText(senileAdapter.getItem(labels[3]), false);
+
+                nuclear.setFreezesText(false);
+                cortical.setFreezesText(false);
+                posterior.setFreezesText(false);
+                senile.setFreezesText(false);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -299,7 +315,7 @@ public class InferenceActivity extends AppCompatActivity {
     @WorkerThread
     private void loadModule(){
         try {
-            module = LiteModuleLoader.load(assetFilePath(getApplicationContext(), "model.ptl"));
+            module = LiteModuleLoader.load(assetFilePath(getApplicationContext(), "Model_PyTorchCNN_forMobile_mine.ptl"));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -310,8 +326,8 @@ public class InferenceActivity extends AppCompatActivity {
         Bitmap bmp1, bmp2, bmp3;
 
         bmp1 = BitmapFactory.decodeFile(new File(diffusedPath).exists()?diffusedPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
-        bmp2 = BitmapFactory.decodeFile(new File(retroPath).exists()?retroPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
-        bmp3 = BitmapFactory.decodeFile(new File(obliquePath).exists()?obliquePath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
+        bmp2 = BitmapFactory.decodeFile(new File(obliquePath).exists()?obliquePath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
+        bmp3 = BitmapFactory.decodeFile(new File(retroPath).exists()?retroPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
 
         int WIDTH = 189;
         int HEIGHT = 336;
@@ -319,16 +335,10 @@ public class InferenceActivity extends AppCompatActivity {
         Bitmap resized2 = Bitmap.createScaledBitmap(bmp2, WIDTH, HEIGHT, true);
         Bitmap resized3 = Bitmap.createScaledBitmap(bmp3, WIDTH, HEIGHT, true);
 
-        Tensor inputTensor1 = TensorImageUtils.bitmapToFloat32Tensor(resized1,
-                TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
-        Tensor inputTensor2 = TensorImageUtils.bitmapToFloat32Tensor(resized2,
-                TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
-        Tensor inputTensor3 = TensorImageUtils.bitmapToFloat32Tensor(resized3,
-                TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
+        float[] f1 = readImageData(resized1, HEIGHT, WIDTH);
+        float[] f2 = readImageData(resized2, HEIGHT, WIDTH);
+        float[] f3 = readImageData(resized3, HEIGHT, WIDTH);
 
-        float[] f1 = inputTensor1.getDataAsFloatArray();
-        float[] f2 = inputTensor1.getDataAsFloatArray();
-        float[] f3 = inputTensor1.getDataAsFloatArray();
 
         FloatBuffer buffer = Tensor.allocateFloatBuffer(3*3* WIDTH * HEIGHT);
         buffer.put(f1);
@@ -336,6 +346,7 @@ public class InferenceActivity extends AppCompatActivity {
         buffer.put(f3);
 
         Tensor inputTensor = Tensor.fromBlob(buffer, new long[]{1, 9, HEIGHT, WIDTH});
+
         Tensor outputTensor = module.forward(IValue.from(inputTensor)).toTensor();
         float[] scores = outputTensor.getDataAsFloatArray();
         int[] output = new int[scores.length];
@@ -349,9 +360,34 @@ public class InferenceActivity extends AppCompatActivity {
             if((int)curr-temp<=5) output[i] = temp;
             else output[i] = temp+1;
         }
-        System.out.println("output "+Arrays.toString(scores));
-        System.out.println("output "+Arrays.toString(output));
+//        System.out.println("output "+Arrays.toString(scores));
+//        System.out.println("output "+Arrays.toString(output));
         return output;
+    }
+
+    private float[] readImageData(Bitmap bmp, int ROWS, int COLS){
+        float[][][][] data = new float[1][3][ROWS][COLS];
+
+        for(int i=0; i<ROWS; i++){
+            for(int j=0; j<COLS; j++){
+                int pixel = bmp.getPixel(j, i);
+                data[0][0][i][j] = (Color.red(pixel));
+                data[0][1][i][j] = (Color.green(pixel));
+                data[0][2][i][j] = (Color.blue(pixel));
+            }
+        }
+
+        float[] result = new float[3 * ROWS * COLS];
+        int index = 0;
+        for(int i=0; i<ROWS; i++){
+            for(int j=0; j<COLS; j++){
+                for(int k=0; k<3; k++){
+                    result[index++] = data[0][k][i][j];
+                }
+            }
+        }
+
+        return result;
     }
 
     private void chooseImagePicker(){
