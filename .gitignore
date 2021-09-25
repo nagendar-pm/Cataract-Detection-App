@@ -103,3 +103,9 @@ lint/tmp/
 
 # Android Profiling
 *.hprof
+
+# Module files
+*.pt
+*.ptl
+*.tflite
+*.h5

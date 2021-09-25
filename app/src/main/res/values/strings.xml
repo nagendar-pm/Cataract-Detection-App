@@ -4,12 +4,12 @@
     <string name="input_image">Input image</string>
     <string name="retro">Retro Illumination</string>
     <string name="diffused">Diffused Illumination</string>
-    <string name="oblique">Oblique Illumination</string>
+    <string name="oblique">Slit Beam Illumination</string>
     <string name="vision_test_result">Visual Acuity</string>
     <string name="nuclear">Nuclear</string>
     <string name="cortical">Cortical</string>
     <string name="posterior">Posterior</string>
-    <string name="senile">Senile</string>
+    <string name="senile">Other</string>
     <string name="save_data">Save Data</string>
     <string name="preview_image">preview_image</string>
     <string name="name">Name</string>
@@ -18,4 +18,7 @@
     <string name="eye_position">Eye Position</string>
     <string name="next">Next</string>
     <string name="vision_test">Vision Test</string>
+    <string name = "required_asterisk"><![CDATA[<font color=\'#cc0029\'>&nbsp*</font>]]></string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

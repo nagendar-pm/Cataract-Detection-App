@@ -1,7 +1,7 @@
 package com.android.example.cataractdetectionapp;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -33,6 +33,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.FileProvider;
 
 import com.bumptech.glide.Glide;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.pytorch.IValue;
 import org.pytorch.LiteModuleLoader;
@@ -116,7 +117,6 @@ public class InferenceActivity extends AppCompatActivity {
 
         mContext = getApplicationContext();
         Intent intent = getIntent();
-        String name = intent.getStringExtra("name");
         String age = intent.getStringExtra("age");
         String gender = intent.getStringExtra("gender");
         String eye = intent.getStringExtra("eye");
@@ -202,7 +202,7 @@ public class InferenceActivity extends AppCompatActivity {
             }
             else{
                 val.set(true);
-                saveImageData(retroPath, diffusedPath, obliquePath, acuity_type, finalAcuity1, finalAcuity2, eye);
+                saveImageData(retroPath, diffusedPath, obliquePath, acuity_type, finalAcuity1, finalAcuity2, eye, age, gender);
             }
         });
 
@@ -392,7 +392,7 @@ public class InferenceActivity extends AppCompatActivity {
 
     private void chooseImagePicker(){
         final CharSequence[] optionsMenu = {"Capture from Camera", "Choose from Gallery", "Preview", "Cancel"};
-        AlertDialog.Builder builder = new AlertDialog.Builder(InferenceActivity.this);
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(InferenceActivity.this);
         builder.setItems(optionsMenu, (dialogInterface, i) -> {
             if(optionsMenu[i].equals("Capture from Camera")){
                 Intent takePicture = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
@@ -458,7 +458,7 @@ public class InferenceActivity extends AppCompatActivity {
 
     private File createImageFile() throws IOException {
         @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss_").format(new Date());
-        String imageFileName = "JPEG_" + timeStamp + "_";
+        String imageFileName = "CAM_JPEG_" + timeStamp + "_";
         File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         File image = File.createTempFile(
                 imageFileName,
@@ -497,7 +497,7 @@ public class InferenceActivity extends AppCompatActivity {
         return new ArrayList<>(Arrays.asList("None", "MSC", "HMSC", "PPC"));
     }
 
-    private void saveImageData(String retroPath, String diffusedPath, String obliquePath, String vision_type, String vision1, String vision2, String eye){
+    private void saveImageData(String retroPath, String diffusedPath, String obliquePath, String vision_type, String vision1, String vision2, String eye, String age, String gender){
         new Thread(() -> {
             String ns = nuclear.getText().toString();
             String c = cortical.getText().toString();
@@ -507,31 +507,35 @@ public class InferenceActivity extends AppCompatActivity {
             @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date());
 
             String currPath = "";
+            currPath += gender+"_"+age+"_";
             if(!ns.trim().equals("")) currPath += ns;
             if(!c.trim().equals("")) currPath += "_"+c;
             if(!p.trim().equals("")) currPath += "_"+p;
             if(!msc.trim().equals("")) currPath += "_"+msc;
             if(vision_type!=null){
-                if(vision_type.equals("Standard")) currPath += vision1+"-"+vision2;
+                if(vision_type.equals("Snellen Chart")) currPath += "_"+vision1+"-"+vision2;
                 else currPath += vision_type;
             }
-            currPath += eye;
+            currPath += "_"+eye;
 
             dir = new File(BASE, currPath+(!msc.trim().equals("")?"_":"")+"_"+timeStamp);
             if(!dir.exists()) {
                 boolean mkdir = dir.mkdir();
             }
 
-            if(!retroPath.trim().equals("")) saveImageUtil(retroPath, dir.getPath() + "/retro", rotate[0]);
-            if(!diffusedPath.trim().equals("")) saveImageUtil(diffusedPath, dir.getPath()+"/diffused", rotate[1]);
-            if(!obliquePath.trim().equals("")) saveImageUtil(obliquePath, dir.getPath()+"/oblique", rotate[2]);
+            if(!retroPath.trim().equals("")) saveImageUtil(retroPath, dir.getPath() + "/RI_"+eye, rotate[0]);
+            if(!diffusedPath.trim().equals("")) saveImageUtil(diffusedPath, dir.getPath()+"/DI_"+eye, rotate[1]);
+            if(!obliquePath.trim().equals("")) saveImageUtil(obliquePath, dir.getPath()+"/SI_"+eye, rotate[2]);
 
         }).start();
     }
 
     private void saveImageUtil(String srcPath, String destPath, int toRotate){
+        System.out.println("src "+srcPath);
+        System.out.println("dest "+destPath);
         final int[] signal = {-1};
         Thread t1 = new Thread(() -> {
+            if(!new File(srcPath).exists()) return;
             Bitmap bmp = BitmapFactory.decodeFile(srcPath);
             int width = bmp.getWidth();
             int height = bmp.getHeight();
@@ -575,19 +579,27 @@ public class InferenceActivity extends AppCompatActivity {
         Intent intent = new Intent(InferenceActivity.this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
-//        finish();
     }
 
     private void deleteTempFiles(String retroPath, String diffusedPath, String obliquePath){
         new Thread(() -> {
-            if(!retroPath.trim().equals("")){
-                boolean isDeleted = new File(retroPath).getAbsoluteFile().delete();
+            if(!retroPath.trim().equals("") && retroPath.contains("CAM_JPEG")){
+                File file = new File(retroPath);
+                Uri uri = FileProvider.getUriForFile(getApplicationContext(), BuildConfig.APPLICATION_ID + ".provider", file);
+                ContentResolver contentResolver = getApplicationContext().getContentResolver();
+                contentResolver.delete(uri, null, null);
             }
-            if(!diffusedPath.trim().equals("")){
-                boolean isDeleted = new File(diffusedPath).getAbsoluteFile().delete();
+            if(!diffusedPath.trim().equals("") && diffusedPath.contains("CAM_JPEG")){
+                File file = new File(diffusedPath);
+                Uri uri = FileProvider.getUriForFile(getApplicationContext(), BuildConfig.APPLICATION_ID + ".provider", file);
+                ContentResolver contentResolver = getApplicationContext().getContentResolver();
+                contentResolver.delete(uri, null, null);
             }
-            if(!obliquePath.trim().equals("")){
-                boolean isDeleted = new File(obliquePath).getAbsoluteFile().delete();
+            if(!obliquePath.trim().equals("") && obliquePath.contains("CAM_JPEG")){
+                File file = new File(obliquePath);
+                Uri uri = FileProvider.getUriForFile(getApplicationContext(), BuildConfig.APPLICATION_ID + ".provider", file);
+                ContentResolver contentResolver = getApplicationContext().getContentResolver();
+                contentResolver.delete(uri, null, null);
             }
         }).start();
     }

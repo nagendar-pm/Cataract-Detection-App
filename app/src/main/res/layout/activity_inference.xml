@@ -11,21 +11,11 @@
         android:id="@+id/constraintLayout2"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/oblique_input"
+        app:layout_constraintBottom_toTopOf="@+id/retro_input"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_chainStyle="spread_inside">
-
-        <include
-            android:id="@+id/retro_input"
-            layout="@layout/card_view"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_margin="10dp"
-            app:layout_constraintEnd_toStartOf="@+id/diffused_input"
-            app:layout_constraintHorizontal_bias="0.5"
-            app:layout_constraintStart_toStartOf="parent" />
 
         <include
             android:id="@+id/diffused_input"
@@ -33,14 +23,24 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_margin="10dp"
+            app:layout_constraintEnd_toStartOf="@+id/oblique_input"
+            app:layout_constraintHorizontal_bias="0.5"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <include
+            android:id="@+id/oblique_input"
+            layout="@layout/card_view"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_margin="10dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.5"
-            app:layout_constraintStart_toEndOf="@+id/retro_input" />
+            app:layout_constraintStart_toEndOf="@+id/diffused_input" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <include
-        android:id="@+id/oblique_input"
+        android:id="@+id/retro_input"
         layout="@layout/card_view"
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -195,7 +195,7 @@
         app:layout_constraintBottom_toTopOf="@+id/constraintLayout1"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/oblique_input" />
+        app:layout_constraintTop_toBottomOf="@+id/retro_input" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/next"

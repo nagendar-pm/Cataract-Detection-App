@@ -1,30 +1,30 @@
 package com.android.example.cataractdetectionapp;
 
+import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.text.TextUtils;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
+import androidx.annotation.WorkerThread;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import org.pytorch.LiteModuleLoader;
+import org.pytorch.Module;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import static android.Manifest.permission.CAMERA;
 import static android.Manifest.permission.INTERNET;
@@ -32,20 +32,17 @@ import static android.Manifest.permission.MANAGE_EXTERNAL_STORAGE;
 import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
 import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
 
-public class MainActivity extends AppCompatActivity {
+public class FragmentsActivity extends AppCompatActivity {
 
     private static final int PERMISSION_REQUEST_CODE = 200;
-
-    private AutoCompleteTextView acuityType;
-    private AutoCompleteTextView visionInput1;
-    private AutoCompleteTextView visionInput2;
-
     private static final String PATH = Environment.getExternalStorageDirectory().getAbsolutePath();
+
+    public Module module;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_fragments);
 
         if(!checkPermission()){
             requestPermission();
@@ -53,86 +50,23 @@ public class MainActivity extends AppCompatActivity {
 
         createDirectory();
 
-        Button submit = findViewById(R.id.submit);
-        EditText age = findViewById(R.id.age);
-        visionInput1 = findViewById(R.id.vision_1);
-        visionInput2 = findViewById(R.id.vision_2);
+        load();
 
-        AutoCompleteTextView genderView = findViewById(R.id.gender);
-        AutoCompleteTextView eyeView = findViewById(R.id.eye);
-        acuityType = findViewById(R.id.vision_type);
+        InitialFragment initialFragmentInstance = new InitialFragment();
+        FragmentManager initialFragmentManager = getSupportFragmentManager();
+        FragmentTransaction initialFragmentTransaction = initialFragmentManager.beginTransaction();
+        initialFragmentTransaction.replace(R.id.fragment_act, initialFragmentInstance, "Initial Fragment")
+                .addToBackStack(null).commit();
 
-        ArrayList<String> genders = getGenders();
-        ArrayList<String> eyes = getEyePositions();
-        ArrayList<String> types = getTestTypes();
-        ArrayList<String> acuityResult1 = getAcuityResult1();
-        ArrayList<String> acuityResult2 = getAcuityResult2();
+    }
 
-        ArrayAdapter<String> genderAdapter = new ArrayAdapter<>(MainActivity.this, R.layout.support_simple_spinner_dropdown_item, genders);
-        ArrayAdapter<String> eyeAdapter = new ArrayAdapter<>(MainActivity.this, R.layout.support_simple_spinner_dropdown_item, eyes);
-        ArrayAdapter<String> testTypeAdapter = new ArrayAdapter<>(MainActivity.this, R.layout.support_simple_spinner_dropdown_item, types);
-        ArrayAdapter<String> result1Adapter = new ArrayAdapter<>(MainActivity.this, R.layout.support_simple_spinner_dropdown_item, acuityResult1);
-        ArrayAdapter<String> result2Adapter = new ArrayAdapter<>(MainActivity.this, R.layout.support_simple_spinner_dropdown_item, acuityResult2);
-
-        genderView.setAdapter(genderAdapter);
-        eyeView.setAdapter(eyeAdapter);
-        acuityType.setAdapter(testTypeAdapter);
-        visionInput1.setAdapter(result1Adapter);
-        visionInput2.setAdapter(result2Adapter);
-
-        genderView.setText(genderAdapter.getItem(0), false);
-        genderView.setFreezesText(false);
-
-        eyeView.setText(eyeAdapter.getItem(0), false);
-        eyeView.setFreezesText(false);
-
-        acuityType.setText(testTypeAdapter.getItem(0), false);
-        acuityType.setFreezesText(false);
-
-        visionInput1.setFreezesText(false);
-        visionInput2.setFreezesText(false);
-
-        acuityType.setOnItemClickListener((adapterView, view, i, l) -> {
-            if(i==0){
-                runOnUiThread(() -> {
-                    visionInput1.setEnabled(true);
-                    visionInput1.setAdapter(result1Adapter);
-
-                    visionInput2.setEnabled(true);
-                    visionInput2.setAdapter(result2Adapter);
-                });
+    private void createDirectory(){
+        new Thread(() -> {
+            File file = new File(PATH, File.separator+"Cataract Grading");
+            if(!file.exists()){
+                boolean mkdir = file.mkdir();
             }
-            else if(i>=1 && i<=7){
-                runOnUiThread(() -> {
-                    visionInput1.setText("");
-                    visionInput1.dismissDropDown();
-                    visionInput1.setAdapter(null);
-
-                    visionInput2.setText("");
-                    visionInput2.dismissDropDown();
-                    visionInput2.setAdapter(null);
-                });
-            }
-        });
-
-        submit.setOnClickListener(view -> {
-            if(TextUtils.isEmpty(age.getText())){
-                age.setError("Required");
-                return;
-            }
-            if(TextUtils.equals(acuityType.getText(), "Snellen Chart")){
-                if(TextUtils.isEmpty(visionInput1.getText())){
-                    visionInput1.setError("Required!");
-                    return;
-                }
-                if(TextUtils.isEmpty(visionInput2.getText())){
-                    visionInput2.setError("Required!");
-                    return;
-                }
-            }
-            submitInputs(age.getText().toString(), genderView.getText().toString(), eyeView.getText().toString());
-        });
-
+        }).start();
     }
 
     private boolean checkPermission() {
@@ -158,7 +92,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.R)
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == PERMISSION_REQUEST_CODE) {
@@ -208,7 +141,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showMessageOKCancel(DialogInterface.OnClickListener okListener) {
-        new MaterialAlertDialogBuilder(MainActivity.this)
+        new AlertDialog.Builder(FragmentsActivity.this)
                 .setMessage("You need to allow access to all the permissions")
                 .setPositiveButton("OK", okListener)
                 .setNegativeButton("Cancel", null)
@@ -216,51 +149,35 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void createDirectory(){
-        new Thread(() -> {
-            File file = new File(PATH, File.separator+"Cataract Grading");
-            if(!file.exists()){
-                boolean mkdir = file.mkdir();
+    public static String assetFilePath(Context context, String assetName) throws IOException {
+        File file = new File(context.getFilesDir(), assetName);
+        if (file.exists() && file.length() > 0) {
+            return file.getAbsolutePath();
+        }
+
+        try (InputStream is = context.getAssets().open(assetName)) {
+            try (OutputStream os = new FileOutputStream(file)) {
+                byte[] buffer = new byte[4 * 1024];
+                int read;
+                while ((read = is.read(buffer)) != -1) {
+                    os.write(buffer, 0, read);
+                }
+                os.flush();
             }
-        }).start();
+            return file.getAbsolutePath();
+        }
     }
 
-    private ArrayList<String> getGenders(){
-        return new ArrayList<>(Arrays.asList("Male", "Female", "Other"));
+    private void load(){
+        loadModule();
     }
 
-    private ArrayList<String> getEyePositions(){
-        return new ArrayList<>(Arrays.asList("Right", "Left"));
+    @WorkerThread
+    private void loadModule(){
+        try {
+            module = LiteModuleLoader.load(assetFilePath(getApplicationContext(), "Model_PyTorchCNN_forMobile_mine.ptl"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
-
-    private ArrayList<String> getTestTypes(){
-        return new ArrayList<>(Arrays.asList("Snellen Chart", "HM", "CFCF", "CF 1mts", "CF 2mts", "CF 3mts", "CF 4mts", "CF 5mts"));
-    }
-
-    private ArrayList<String> getAcuityResult1(){
-        return new ArrayList<>(Collections.singletonList("6"));
-    }
-
-    private ArrayList<String> getAcuityResult2(){
-        return new ArrayList<>(Arrays.asList("6", "9", "12", "18", "24", "36", "60"));
-    }
-
-    /**
-     * @param age age of the given patient
-     * @param gender gender of the given patient
-     * @param eye whether left or right eye
-     */
-    private void submitInputs(String age, String gender, String eye){
-        Intent intent = new Intent(MainActivity.this, InferenceActivity.class);
-        intent.putExtra("age", age);
-        intent.putExtra("gender", gender);
-        intent.putExtra("eye", eye.equals("Right")?"OD":"OS");
-
-        intent.putExtra("acuity_type", acuityType.getText().toString());
-        if(!visionInput1.getText().toString().trim().equals("")) intent.putExtra("acuity_1", visionInput1.getText().toString());
-        if(!visionInput2.getText().toString().trim().equals("")) intent.putExtra("acuity_2", visionInput2.getText().toString());
-
-        startActivity(intent);
-    }
-
 }
