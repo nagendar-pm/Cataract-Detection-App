@@ -1,4 +1,4 @@
-# Cataract-Detection-App
+# Mission Vision
 
 With advancement in technology, devices which can detect both existing cataracts and those which are likely to develop in future are developed. 
 In India, these devices can cost upwards of 5 lakh Rupees to as much as 10 lakh rupees. 
