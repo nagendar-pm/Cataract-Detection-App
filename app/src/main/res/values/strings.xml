@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Cataract Detection App</string>
+    <string name="app_name">Mission Vision</string>
     <string name="submit">Submit</string>
     <string name="input_image">Input image</string>
     <string name="retro">Retro Illumination</string>
