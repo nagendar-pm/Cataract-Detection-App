@@ -11,7 +11,7 @@ It makes the process of early detection and grading of cataracts much more strea
 The app runs in Android mobile phones without needing any internet connection. It presents the examiner with a clean UI. It takes input three different images of the eye in different forms of illuminations (**diffused**, **slit-beam** and **retro illumination**). These three images along with the vision acuity reading are then fed into a neural network which predicts the type of the cataract and also the grade associated with it. Cataracts can be of many different types: **nuclear** (center of the lens), **cortical** (periphery of the lens) and **posterior** (back side of the lens). The LOCS III system provides an objective reference system to grade these with few more types not standardized: **MSC**, **HMSC** and **PPC**. We have trained our AI model to also recognize these based on the reference training data provided by the eye doctors. The reference images are also being collected by the same app.
 
 ## Instructions to use the app
-****
+
 The apk of the app can be found [here](https://drive.google.com/file/d/1eQGgBUCcB15kUgNfLG8fHAbv6IEEGbtj/view?usp=sharing)
 1. On opening the app the examiner is welcomed with a screen to enter the demographics of the patient such as Age, Gender, Eye position, Vision acuity readings
 2. Next the app asks for the main inputs i.e the images of the eye which can be captured from the camera or gallery
@@ -23,7 +23,7 @@ The apk of the app can be found [here](https://drive.google.com/file/d/1eQGgBUCc
 
 
 ## Additional Information
-****
+
 ### Permissions Required
 The app needs the access to the following
 
