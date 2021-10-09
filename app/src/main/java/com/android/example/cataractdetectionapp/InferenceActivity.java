@@ -30,6 +30,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import com.bumptech.glide.Glide;
@@ -58,8 +59,8 @@ public class InferenceActivity extends AppCompatActivity {
     private Context mContext;
 
     private File dir;
-    private static final String PATH = Environment.getExternalStorageDirectory().getAbsolutePath();
-    private static final String BASE = PATH+"/Cataract Grading";
+    private static String PATH = null;
+    private static String BASE = null;
 
     private AutoCompleteTextView nuclear;
     private AutoCompleteTextView cortical;
@@ -68,6 +69,7 @@ public class InferenceActivity extends AppCompatActivity {
 
     private ActivityResultLauncher<Intent> camLaunch;
     private ActivityResultLauncher<Intent> galleryLaunch;
+    private ActivityResultLauncher<Intent> recentLaunch;
 
     private ImageView mRetroImage;
     private ImageView mDiffusedImage;
@@ -89,6 +91,8 @@ public class InferenceActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_inference);
+
+        setPath();
 
         createDirectory();
 
@@ -270,6 +274,51 @@ public class InferenceActivity extends AppCompatActivity {
                 }
         );
 
+        recentLaunch = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    int resultCode = result.getResultCode();
+                    Intent data = result.getData();
+                    if (resultCode == RESULT_OK && data != null) {
+                        Uri selectedImage = data.getData();
+                        String[] filePathColumn = {MediaStore.Images.ImageColumns.DATA};
+                        String picturePath;
+                        if (selectedImage != null) {
+//                            Log.d("", "onCreate: "+selectedImage.getPath());
+//                            Log.d("", "onCreate: "+filePathColumn[0]);
+//
+//                            Cursor cursor = getContentResolver().query(selectedImage, filePathColumn, null, null, null);
+//                            if (cursor != null) {
+//                                cursor.moveToFirst();
+//                                int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+//                                picturePath = cursor.getString(columnIndex);
+//                                cursor.close();
+//                            }
+//                            if(picturePath==null){
+//                                picturePath = selectedImage.getPath();
+//                            }
+                            String mainPath = selectedImage.getPath().split(":")[1];
+                            picturePath = PATH + File.separator + mainPath;
+                            Log.d("", "onCreate: "+picturePath);
+                            switch (gallery[0]){
+                                case 1:
+                                    retroPath = picturePath;
+                                    Glide.with(this).load(picturePath).into(mRetroImage);
+                                    break;
+                                case 2:
+                                    diffusedPath = picturePath;
+                                    Glide.with(this).load(picturePath).into(mDiffusedImage);
+                                    break;
+                                case 3:
+                                    obliquePath = picturePath;
+                                    Glide.with(this).load(picturePath).into(mObliqueImage);
+                                    break;
+                            }
+                        }
+                    }
+                }
+        );
+
         mRetroView.setOnClickListener(view -> {
             camera[0] = 1;
             gallery[0] = 1;
@@ -315,7 +364,7 @@ public class InferenceActivity extends AppCompatActivity {
     @WorkerThread
     private void loadModule(){
         try {
-            module = LiteModuleLoader.load(assetFilePath(getApplicationContext(), "Model_PyTorchCNN_forMobile_mine.ptl"));
+            module = LiteModuleLoader.load(assetFilePath(getApplicationContext(), "model.ptl"));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -325,9 +374,12 @@ public class InferenceActivity extends AppCompatActivity {
     private int[] inference() throws IOException {
         Bitmap bmp1, bmp2, bmp3;
 
-        bmp1 = BitmapFactory.decodeFile(new File(diffusedPath).exists()?diffusedPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
-        bmp2 = BitmapFactory.decodeFile(new File(obliquePath).exists()?obliquePath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
-        bmp3 = BitmapFactory.decodeFile(new File(retroPath).exists()?retroPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
+        bmp1 = BitmapFactory.decodeFile(diffusedPath!=null && diffusedPath.trim().length()!=0 && new File(diffusedPath).exists()
+                ?diffusedPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
+        bmp2 = BitmapFactory.decodeFile(obliquePath!=null && obliquePath.trim().length()!=0 && new File(obliquePath).exists()
+                ?obliquePath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
+        bmp3 = BitmapFactory.decodeFile(retroPath!=null && retroPath.trim().length()!=0 && new File(retroPath).exists()
+                ?retroPath:assetFilePath(getApplicationContext(), "black_img.jpeg"));
 
         int WIDTH = 189;
         int HEIGHT = 336;
@@ -391,7 +443,7 @@ public class InferenceActivity extends AppCompatActivity {
     }
 
     private void chooseImagePicker(){
-        final CharSequence[] optionsMenu = {"Capture from Camera", "Choose from Gallery", "Preview", "Cancel"};
+        final CharSequence[] optionsMenu = {"Capture from Camera", "Choose from Gallery", "Recent Cases", "Preview", "Cancel"};
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(InferenceActivity.this);
         builder.setItems(optionsMenu, (dialogInterface, i) -> {
             if(optionsMenu[i].equals("Capture from Camera")){
@@ -420,6 +472,15 @@ public class InferenceActivity extends AppCompatActivity {
                 choosePicture.putExtra("REQUEST_CODE", 0);
                 galleryLaunch.launch(choosePicture);
             }
+            else if(optionsMenu[i].equals("Recent Cases")){
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath()
+                        + "/Cataract Grading");
+                intent.setDataAndType(uri, "image/*");
+                intent = Intent.createChooser(intent, "Choose Image");
+                intent.putExtra("REQUEST_CODE", 0);
+                recentLaunch.launch(intent);
+            }
             else if(optionsMenu[i].equals("Preview")){
                 Intent displayImg = new Intent(this, ImagePreviewActivity.class);
                 String path;
@@ -447,9 +508,19 @@ public class InferenceActivity extends AppCompatActivity {
         builder.show();
     }
 
+    private void setPath(){
+        File[] files = ContextCompat.getExternalFilesDirs(getApplicationContext(), null);
+        if(files.length!=0){
+//            PATH = files.length>=2?files[1].getAbsolutePath():Environment.getExternalStorageDirectory().getAbsolutePath();
+            PATH = Environment.getExternalStorageDirectory().getAbsolutePath();
+            BASE = PATH+"/Cataract Grading";
+        }
+    }
+
     private void createDirectory(){
         new Thread(() -> {
-            File file = new File(BASE);
+            if(PATH==null) setPath();
+            File file = new File(PATH, File.separator+"Cataract Grading");
             if(!file.exists()){
                 boolean mkdir = file.mkdir();
             }
@@ -642,15 +713,53 @@ public class InferenceActivity extends AppCompatActivity {
         if(obliquePath!=null && !obliquePath.equals("")) Glide.with(this).load(obliquePath).into(mObliqueImage);
     }
 
-    /* Checks if external storage is available for read and write */
     public boolean isExternalStorageWritable() {
         String state = Environment.getExternalStorageState();
         return Environment.MEDIA_MOUNTED.equals(state);
     }
-    /* Checks if external storage is available to at least read */
+
     public boolean isExternalStorageReadable() {
         String state = Environment.getExternalStorageState();
         return Environment.MEDIA_MOUNTED.equals(state) ||
                 Environment.MEDIA_MOUNTED_READ_ONLY.equals(state);
+    }
+
+    private void externalStorage(){
+        final String state = Environment.getExternalStorageState();
+
+        if ( Environment.MEDIA_MOUNTED.equals(state) || Environment.MEDIA_MOUNTED_READ_ONLY.equals(state) ) {  // we can read the External Storage...
+            final File primaryExternalStorage = Environment.getExternalStorageDirectory();
+
+            final String externalStorageRootDir;
+            if ( (externalStorageRootDir = primaryExternalStorage.getParent()) == null ) {  // no parent...
+                Log.d("TAG", "External Storage: " + primaryExternalStorage + "\n");
+            }
+            else {
+                final File externalStorageRoot = new File( externalStorageRootDir );
+                final File[] files = externalStorageRoot.listFiles();
+
+                if(files!=null){
+                    for ( final File file : files ) {
+                        if ( file.isDirectory() && file.canRead() && (Objects.requireNonNull(file.listFiles()).length > 0) ) {  // it is a real directory (not a USB drive)...
+                            Log.d("TAG", "External Storage: " + file.getAbsolutePath() + "\n");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static String SDCardPath(){
+        String strSDCardPath;
+        System.out.println("Env "+System.getenv().toString());
+        if (Environment.isExternalStorageRemovable()){
+            strSDCardPath = System.getenv("EXTERNAL_STORAGE");
+        } else {
+            strSDCardPath = System.getenv("SECONDARY_STORAGE");
+            if (strSDCardPath == null || strSDCardPath.length() == 0) {
+                strSDCardPath = System.getenv("EXTERNAL_SDCARD_STORAGE");
+            }
+        }
+        return strSDCardPath;
     }
 }

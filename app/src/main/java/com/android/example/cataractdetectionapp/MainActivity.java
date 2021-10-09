@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.text.TextUtils;
+import android.util.Log;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
@@ -40,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private AutoCompleteTextView visionInput1;
     private AutoCompleteTextView visionInput2;
 
-    private static final String PATH = Environment.getExternalStorageDirectory().getAbsolutePath();
+    private static String PATH = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +52,8 @@ public class MainActivity extends AppCompatActivity {
             requestPermission();
         }
 
+        setPath();
+        System.out.println("path "+PATH);
         createDirectory();
 
         Button submit = findViewById(R.id.submit);
@@ -216,8 +219,20 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    private void setPath(){
+        File[] files = ContextCompat.getExternalFilesDirs(getApplicationContext(), null);
+        Log.d("", "setPath: "+ Environment.getExternalStorageDirectory().getAbsolutePath());
+        if(files.length!=0){
+            for(File file : files){
+                Log.d("", "setPath: "+file.getAbsolutePath());
+            }
+            PATH = files.length>=2?files[1].getAbsolutePath():Environment.getExternalStorageDirectory().getAbsolutePath();
+        }
+    }
+
     private void createDirectory(){
         new Thread(() -> {
+            if(PATH==null) setPath();
             File file = new File(PATH, File.separator+"Cataract Grading");
             if(!file.exists()){
                 boolean mkdir = file.mkdir();
@@ -262,5 +277,4 @@ public class MainActivity extends AppCompatActivity {
 
         startActivity(intent);
     }
-
 }
