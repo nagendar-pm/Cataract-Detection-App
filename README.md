@@ -12,7 +12,7 @@ The app runs in Android mobile phones without needing any internet connection. I
 
 ## Instructions to use the app
 
-The apk of the app can be found [here](https://drive.google.com/file/d/1eQGgBUCcB15kUgNfLG8fHAbv6IEEGbtj/view?usp=sharing)
+### The apk of the app can be found [here](https://drive.google.com/file/d/1eQGgBUCcB15kUgNfLG8fHAbv6IEEGbtj/view?usp=sharing)
 1. On opening the app the examiner is welcomed with a screen to enter the demographics of the patient such as Age, Gender, Eye position, Vision acuity readings
 2. Next the app asks for the main inputs i.e the images of the eye which can be captured from the camera or gallery
 3. On submitting these inputs, the app outputs four different labels in the order Nuclear, Cortical, Posterior and Other corresponding to the grades of different cataracts
